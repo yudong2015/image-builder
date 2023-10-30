@@ -17,6 +17,18 @@ shipwrightBuildController:
     WAITER_CONTAINER_IMAGE:
       repository: ghcr.io/shipwright-io/build/waiter
       tag: v0.10.0
-    BUILDER_CONTAINER_IMAGE:
-      repository: docker.io/paketobuildpacks/builder
-      tag: full 
+#    BUILDER_CONTAINER_IMAGE:
+#      repository: docker.io/paketobuildpacks/builder
+#      tag: full
+    BUILDER_CONTAINER_IMAGE_GO:
+      repository: builder-go
+      tag: binoic
+    BUILDER_CONTAINER_IMAGE_NODE:
+      repository: builder-node
+      tag: bionic
+    BUILDER_CONTAINER_IMAGE_PYTHON:
+      repository: builder-python
+      tag: bionic
+    BUILDER_CONTAINER_IMAGE_JAVA:
+      repository: builder-java
+      tag: bionic
