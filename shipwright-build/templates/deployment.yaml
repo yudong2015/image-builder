@@ -5,7 +5,7 @@ metadata:
   labels:
   {{- include "shipwright-build.labels" . | nindent 4 }}
 spec:
-  replicas: {{ .Values.shipwrightBuildController.replicas }}
+  replicas: {{ .Values.buildController.replicas }}
   selector:
     matchLabels:
       name: shipwright-build
@@ -16,8 +16,13 @@ spec:
         name: shipwright-build
       {{- include "shipwright-build.selectorLabels" . | nindent 8 }}
     spec:
+      securityContext:
+        runAsNonRoot: true
+      serviceAccountName: {{ include "shipwright-build.fullname" . }}-controller
       containers:
-        - env:
+        - name: shipwright-build
+          image: {{ .values.images.registry }}/{{ .values.images.controller.repository }}:{{ .values.images.controller.tag }}
+          env:
             - name: WATCH_NAMESPACE
               valueFrom:
                 fieldRef:
@@ -31,37 +36,93 @@ spec:
                 fieldRef:
                   fieldPath: metadata.name
             - name: CONTROLLER_NAME
-              value: shipwright-build
+              value: "shipwright-build"
             - name: GIT_ENABLE_REWRITE_RULE
               value: "false"
-            {{- with .Values.shipwrightBuildController.shipwrightBuild}}
+            {{- with .Values.images}}
             - name: GIT_CONTAINER_IMAGE
-              value: {{ .GIT_CONTAINER_IMAGE.repository }}:{{ .GIT_CONTAINER_IMAGE.tag }}
-            - name: MUTATE_IMAGE_CONTAINER_IMAGE
-              value: {{ .MUTATE_IMAGE_CONTAINER_IMAGE.repository }}:{{ .MUTATE_IMAGE_CONTAINER_IMAGE.tag }}
+              value: {{ .registry }}/{{ .git.repository }}:{{ .git.tag }}
+            - name: IMAGE_PROCESSING_CONTAINER_IMAGE
+              value: {{ .registry }}/{{ .imageProcessing.repository }}:{{ .imageProcessing.tag }}
             - name: BUNDLE_CONTAINER_IMAGE
-              value: {{ .BUNDLE_CONTAINER_IMAGE.repository }}:{{ .BUNDLE_CONTAINER_IMAGE.tag }}
+              value: {{ .registry }}/{{ .bundle.repository }}:{{ .bundle.tag }}
             - name: WAITER_CONTAINER_IMAGE
-              value: {{ .WAITER_CONTAINER_IMAGE.repository }}:{{ .WAITER_CONTAINER_IMAGE.tag }}
-            - name: KUBERNETES_CLUSTER_DOMAIN
-              value: {{ $.Values.kubernetesClusterDomain }}
-          image: {{ .image.repository }}:{{ .image.tag }}
+              value: {{ .registry }}/{{ .waiter.repository }}:{{ .waiter.tag }}
             {{- end }}
+          ports:
+            - containerPort: 8383
+              name: metrics-port
           livenessProbe:
             httpGet:
               path: /metrics
               port: metrics-port
             initialDelaySeconds: 5
             periodSeconds: 10
-          name: shipwright-build
-          ports:
-            - containerPort: 8383
-              name: metrics-port
           readinessProbe:
             httpGet:
               path: /metrics
               port: metrics-port
             initialDelaySeconds: 5
             periodSeconds: 10
-          resources: {}
-      serviceAccountName: {{ include "shipwright-build.fullname" . }}-controller
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            seccompProfile:
+              type: RuntimeDefault
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "shipwright-build.fullname" . }}-webhook
+  namespace: shipwright-build
+  labels:
+    app: shp-build-webhook
+spec:
+  replicas: 1
+  strategy:
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      name: shp-build-webhook
+  template:
+    metadata:
+      name: shp-build-webhook
+      labels:
+        name: shp-build-webhook
+    spec:
+      securityContext:
+        runAsNonRoot: true
+      serviceAccountName: {{ include "shipwright-build.fullname" . }}-webhook
+      containers:
+        - name: shp-build-webhook
+          image: {{ .values.images.registry }}/{{ .values.images.webhook.repository }}:{{ .values.images.webhook.tag }}
+          volumeMounts:
+            - name: webhook-certs
+              mountPath: /etc/webhook/certs
+              readOnly: true
+          ports:
+            - containerPort: 8443
+              name: https-port
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            seccompProfile:
+              type: RuntimeDefault
+      volumes:
+        - name: webhook-certs
+          secret:
+            secretName: shipwright-build-webhook-cert

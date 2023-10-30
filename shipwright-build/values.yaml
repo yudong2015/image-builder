@@ -1,25 +1,30 @@
-kubernetesClusterDomain: cluster.local
-shipwrightBuildController:
+images:
+  registry: ghcr.io/shipwright-io/build
+  controller:
+    repository: shipwright-build-controller
+    tag: v0.12.0
+  git:
+    repository: git
+    tag: v0.12.0
+  imageProcessing:
+    repository: image-processing
+    tag: v0.12.0
+  bundle:
+    repository: bundle
+    tag: v0.12.0
+  waiter:
+    repository: waiter
+    tag: v0.12.0
+  webhook:
+    repository: shipwright-build-webhook
+    tag: v0.12.0
+
+buildController:
   replicas: 1
-  shipwrightBuild:
-    image:
-      repository: ghcr.io/shipwright-io/build/shipwright-build-controller
-      tag: v0.10.0
-    GIT_CONTAINER_IMAGE:
-      repository: ghcr.io/shipwright-io/build/git
-      tag: v0.10.0
-    MUTATE_IMAGE_CONTAINER_IMAGE:
-      repository: ghcr.io/shipwright-io/build/mutate-image
-      tag: v0.10.0
-    BUNDLE_CONTAINER_IMAGE:
-      repository: ghcr.io/shipwright-io/build/bundle
-      tag: v0.10.0
-    WAITER_CONTAINER_IMAGE:
-      repository: ghcr.io/shipwright-io/build/waiter
-      tag: v0.10.0
-#    BUILDER_CONTAINER_IMAGE:
-#      repository: docker.io/paketobuildpacks/builder
-#      tag: full
+
+builder:
+  image:
+    registry: ghcr.io/shipwright-io/build
     BUILDER_CONTAINER_IMAGE_GO:
       repository: builder-go
       tag: binoic
